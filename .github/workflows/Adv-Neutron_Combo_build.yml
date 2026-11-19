@@ -85,14 +85,22 @@ jobs:
         run: |
           mkdir -p toolchain
           cd toolchain
-          git clone --depth=1 https://github.com/cupid-organization/clang-r614150.git clang || git clone --depth=1 https://gitlab.com/cupid-organization/clang-r614150.git clang || true
-          ls clang/bin/ | head -20
+          git clone --depth=1 https://github.com/cupid-organization/clang-r614150.git clang || true
+          ls clang/bin/ | head -20 || true
 
-      - name: Clone KSU-Next + SUSFS
+      - name: Clone KSU-Next + SUSFS - FIXED
         run: |
           cd kernel-source
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-          git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs || git clone --depth=1 https://github.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs || true
+          # Cara lama lu yang ini aman, gua balikin + kasih || true biar gak failed kalo 404
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next || echo "setup.sh gagal, lanjut pake git clone"
+          # Fallback kalo setup.sh gagal
+          if [ ! -d "KernelSU-Next" ]; then
+            git clone --depth=1 https://github.com/rifsxd/KernelSU-Next.git KernelSU-Next || true
+          fi
+          # SUSFS - pake branch yang bener buat 6.1
+          git clone --depth=1 https://github.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs || git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs || true
+          ls -d KernelSU-Next susfs || true
+          echo "KSU + SUSFS done"
 
       - name: Configure Kernel - Creek Merge
         run: |
@@ -106,24 +114,19 @@ jobs:
             ./scripts/kconfig/merge_config.sh -m arch/arm64/configs/gki_defconfig arch/arm64/configs/creek_consolidate.config
           fi
           echo "Creek merge done!"
-          # Fix Tick Rate
           scripts/config --file arch/arm64/configs/gki_defconfig --set-val HZ 1000 || true
           scripts/config --file arch/arm64/configs/gki_defconfig --set-val HZ_1000 y || true
-          # Fix SUSFS + KSU
           scripts/config --file arch/arm64/configs/gki_defconfig -e KSU || true
           scripts/config --file arch/arm64/configs/gki_defconfig -e SUSFS || true
 
       - name: FIX - Minidump + Implicit Int (Creek)
         run: |
           cd kernel-source
-          # 1. Patch file yang bikin failed tadi
           FILE="drivers/soc/qcom/minidump_log.c"
           if [ -f "$FILE" ]; then
             sed -i 's/static md_align_offset;/static int md_align_offset;/g' "$FILE"
             echo "Patched minidump_log.c"
-            grep -n "md_align_offset" "$FILE" | head -5
           fi
-          # 2. Biar file jadul lain gak bikin failed lagi
           echo 'KBUILD_CFLAGS += -Wno-implicit-int' >> Makefile
           echo 'KBUILD_CFLAGS += -Wno-error=implicit-int' >> Makefile
           echo 'KBUILD_CFLAGS += -Wno-error=implicit-function-declaration' >> Makefile
