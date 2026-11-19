@@ -212,11 +212,13 @@ jobs:
           git checkout -- .config 2>/dev/null || true
           echo "Creek merge done! tree bersih lagi"
 
-      - name: "🩹 Fix minidump_log error"
+            - name: "🩹 Fix minidump_log error"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         run: |
           sed -i 's/^static md_align_offset;/static unsigned int md_align_offset;/' drivers/soc/qcom/minidump_log.c
+          sed -i 's/static struct zram_pages_life \*init_pages_life()/static struct zram_pages_life *init_pages_life(void)/' drivers/block/zram/zram_drv.c
           grep -n "md_align_offset" drivers/soc/qcom/minidump_log.c | head -5
+          grep -n "init_pages_life" drivers/block/zram/zram_drv.c | head -5
           echo "minidump fixed!"
       
       - name: "💫 Get Toolchains"
