@@ -48,7 +48,7 @@ on:
       TOOLCHAIN:
         description: 'Toolchain'
         required: true
-        default: 'clang-r614150'
+        default: 'clang-r547379'
       LTO:
         description: 'LTO Mode'
         required: true
@@ -81,25 +81,24 @@ jobs:
           cd kernel-source
           git submodule update --init --recursive || true
 
-      - name: Clone Toolchain
+      - name: Clone Toolchain - FIXED PUBLIC
         run: |
           mkdir -p toolchain
           cd toolchain
-          git clone --depth=1 https://github.com/cupid-organization/clang-r614150.git clang || true
-          ls clang/bin/ | head -20 || true
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r547379.git clang
+          ls clang/bin/ | head -20
+          ./clang/bin/clang --version || clang/bin/clang --version
+          ls clang/bin/ld.lld && echo "ld.lld KETEMU"
 
       - name: Clone KSU-Next + SUSFS - FIXED
         run: |
           cd kernel-source
-          # Cara lama lu yang ini aman, gua balikin + kasih || true biar gak failed kalo 404
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next || echo "setup.sh gagal, lanjut pake git clone"
-          # Fallback kalo setup.sh gagal
-          if [ ! -d "KernelSU-Next" ]; then
-            git clone --depth=1 https://github.com/rifsxd/KernelSU-Next.git KernelSU-Next || true
-          fi
-          # SUSFS - pake branch yang bener buat 6.1
-          git clone --depth=1 https://github.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs || git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs || true
-          ls -d KernelSU-Next susfs || true
+          # KSU-Next langsung git clone, gak pake setup.sh yang 404
+          git clone --depth=1 https://github.com/rifsxd/KernelSU-Next.git KernelSU-Next
+          ls KernelSU-Next/kernel/ | head -10
+          # SUSFS dari GitLab, bukan GitHub
+          git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs
+          ls susfs/ | head -10
           echo "KSU + SUSFS done"
 
       - name: Configure Kernel - Creek Merge
@@ -116,8 +115,6 @@ jobs:
           echo "Creek merge done!"
           scripts/config --file arch/arm64/configs/gki_defconfig --set-val HZ 1000 || true
           scripts/config --file arch/arm64/configs/gki_defconfig --set-val HZ_1000 y || true
-          scripts/config --file arch/arm64/configs/gki_defconfig -e KSU || true
-          scripts/config --file arch/arm64/configs/gki_defconfig -e SUSFS || true
 
       - name: FIX - Minidump + Implicit Int (Creek)
         run: |
@@ -130,11 +127,10 @@ jobs:
           echo 'KBUILD_CFLAGS += -Wno-implicit-int' >> Makefile
           echo 'KBUILD_CFLAGS += -Wno-error=implicit-int' >> Makefile
           echo 'KBUILD_CFLAGS += -Wno-error=implicit-function-declaration' >> Makefile
-          echo 'KBUILD_CFLAGS += -Wno-error=return-mismatch' >> Makefile
           echo 'KBUILD_CFLAGS += -O3' >> Makefile
           echo "Makefile patched"
 
-      - name: Build kernel with clang-r614150
+      - name: Build kernel with clang
         run: |
           cd kernel-source
           export PATH="$GITHUB_WORKSPACE/toolchain/clang/bin:$PATH"
@@ -142,15 +138,7 @@ jobs:
           export LLVM=1
           export LLVM_IAS=1
           make O=out gki_defconfig
-          make -j$(nproc) O=out \
-            CC=clang \
-            LD=ld.lld \
-            AR=llvm-ar \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip \
-            Image.gz 2>&1 | tee build.log
+          make -j$(nproc) O=out CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image.gz 2>&1 | tee build.log
 
       - name: Package-Kernels
         run: |
