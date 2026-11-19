@@ -211,6 +211,13 @@ jobs:
           make mrproper || true
           git checkout -- .config 2>/dev/null || true
           echo "Creek merge done! tree bersih lagi"
+
+      - name: "🩹 Fix minidump_log error"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        run: |
+          sed -i 's/^static md_align_offset;/static unsigned int md_align_offset;/' drivers/soc/qcom/minidump_log.c
+          grep -n "md_align_offset" drivers/soc/qcom/minidump_log.c | head -5
+          echo "minidump fixed!"
       
       - name: "💫 Get Toolchains"
         if: github.event.inputs.buildToolchains == 'custom-tools'
