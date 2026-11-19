@@ -202,8 +202,8 @@ jobs:
       - name: "🌊 Merge Creek Config"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         run: |
-          ./scripts/kconfig/merge_config.sh -m arch/arm64/configs/gki_defconfig arch/arm64/configs/creek_GKI.config
-          ./scripts/kconfig/merge_config.sh -m arch/arm64/configs/gki_defconfig arch/arm64/configs/creek_consolidate.config
+          ./scripts/kconfig/merge_config.sh -m arch/arm64/configs/gki_defconfig arch/arm64/configs/vendor/creek_GKI.config
+          ./scripts/kconfig/merge_config.sh -m arch/arm64/configs/gki_defconfig arch/arm64/configs/vendor/creek_consolidate.config
           echo "Creek merge done!"
       
       - name: "💫 Get Toolchains"
